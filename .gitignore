@@ -1,0 +1,42 @@
+# Dependencies / build
+**/node_modules/
+**/dist/
+**/__pycache__/
+**/.venv/
+*.pyc
+
+# Databases and local runtime
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.backup
+*.bak
+backend/counselling_agent_encrypted.db
+
+# Local backup / scratch artifacts
+*.failed_backup
+*.before_*
+*_before_*
+*_backup*
+*_backup.*
+*.broken_*
+*_path_error.bat
+Agent66_Deployment_Package.zip
+tree
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+frontend/.env
+
+# Logs / OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/

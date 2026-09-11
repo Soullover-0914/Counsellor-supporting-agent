@@ -1,0 +1,144 @@
+"""
+Centralised institutional email recipients and SMTP delivery.
+
+Provider secrets must come from environment configuration.
+Plaintext passwords must never be logged.
+"""
+
+from __future__ import annotations
+
+import logging
+import smtplib
+from email.message import EmailMessage
+
+from app.core.config import settings
+
+logger = logging.getLogger("agent66.email")
+
+
+ROLE_EMAIL_RECIPIENTS = {
+    "admin": settings.email_admin,
+    "hod": settings.email_hod,
+    "faculty": settings.email_faculty,
+    "counsellor": settings.email_counsellor,
+    "mentor": settings.email_mentor,
+}
+
+
+def email_configured() -> bool:
+    return bool(
+        settings.smtp_host
+        and settings.smtp_from_email
+        and settings.smtp_username
+        and settings.smtp_password
+    )
+
+
+def send_email(
+    *,
+    to_email: str,
+    subject: str,
+    body: str,
+) -> bool:
+    """
+    Send a plain-text email.
+
+    Returns True on success, False on soft failure.
+    Never raises to callers for delivery failures.
+    """
+
+    if not to_email:
+        logger.warning("email_skipped_missing_recipient")
+        return False
+
+    if not email_configured():
+        logger.warning(
+            "email_skipped_smtp_not_configured recipient_domain=%s",
+            to_email.split("@")[-1] if "@" in to_email else "unknown",
+        )
+        return False
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = (
+        f"{settings.smtp_from_name} <{settings.smtp_from_email}>"
+    )
+    message["To"] = to_email
+    message.set_content(body)
+
+    try:
+        with smtplib.SMTP(
+            settings.smtp_host,
+            settings.smtp_port,
+            timeout=30,
+        ) as server:
+            if settings.smtp_use_tls:
+                server.starttls()
+
+            server.login(
+                settings.smtp_username,
+                settings.smtp_password,
+            )
+            server.send_message(message)
+
+        logger.info(
+            "email_sent subject=%s recipient_domain=%s",
+            subject,
+            to_email.split("@")[-1],
+        )
+        return True
+
+    except Exception as exc:
+        logger.error(
+            "email_delivery_failed subject=%s error_type=%s",
+            subject,
+            type(exc).__name__,
+        )
+        return False
+
+
+def notify_admin_signup_request(
+    *,
+    student_name: str,
+    student_id: str,
+    email: str,
+    username: str,
+) -> bool:
+    admin_email = ROLE_EMAIL_RECIPIENTS["admin"]
+    body = (
+        "A new student registration request has been submitted.\n\n"
+        f"Student:\n{student_name}\n\n"
+        f"Student ID:\n{student_id}\n\n"
+        f"Email:\n{email}\n\n"
+        f"Username:\n{username}\n\n"
+        "Please review the pending registration in Agent 66.\n"
+    )
+    return send_email(
+        to_email=admin_email,
+        subject="Agent 66 — New Student Registration Request",
+        body=body,
+    )
+
+
+def notify_student_registration_approved(
+    *,
+    to_email: str,
+    username: str,
+    temporary_password: str,
+) -> bool:
+    body = (
+        "Registration approved.\n\n"
+        f"Username:\n{username}\n\n"
+        f"Temporary password:\n{temporary_password}\n\n"
+        f"Login:\n{settings.app_login_url}\n\n"
+        "Important:\n"
+        "This is a temporary password.\n"
+        "You must change your password after your first login.\n\n"
+        "Your password can be changed only once through the "
+        "initial password-change process.\n"
+    )
+    return send_email(
+        to_email=to_email,
+        subject="Agent 66 — Registration Approved",
+        body=body,
+    )

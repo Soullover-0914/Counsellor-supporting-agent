@@ -1,0 +1,241 @@
+/* Agent 66 — #65c2f5 blended with white (smooth mixes, not washed fades) */
+
+:root {
+  color-scheme: light;
+
+  --font-sans: "Source Sans 3", "Segoe UI", sans-serif;
+  --font-serif: "Source Serif 4", Georgia, serif;
+
+  --brand: #65c2f5;
+  --brand-rgb: 101, 194, 245;
+  --white: #ffffff;
+
+  /* Soft blue↔white blends for atmosphere */
+  --bg: color-mix(in srgb, var(--brand) 18%, var(--white));
+  --bg-elevated: color-mix(in srgb, var(--brand) 10%, var(--white));
+  --surface: color-mix(in srgb, var(--brand) 4%, var(--white));
+  --surface-muted: color-mix(in srgb, var(--brand) 14%, var(--white));
+
+  /* Readable ink kept in the same blue family */
+  --ink: color-mix(in srgb, var(--brand) 58%, #000000);
+  --ink-secondary: color-mix(in srgb, var(--brand) 48%, #000000);
+  --muted: color-mix(in srgb, var(--brand) 40%, #000000);
+
+  --border: color-mix(in srgb, var(--brand) 32%, var(--white));
+  --border-strong: color-mix(in srgb, var(--brand) 48%, var(--white));
+
+  --accent: var(--brand);
+  --accent-hover: color-mix(in srgb, var(--brand) 78%, #000000);
+  --accent-soft: color-mix(in srgb, var(--brand) 22%, var(--white));
+  --accent-text: color-mix(in srgb, var(--brand) 52%, #000000);
+  --accent-solid: color-mix(in srgb, var(--brand) 42%, #000000);
+  --accent-solid-hover: color-mix(in srgb, var(--brand) 55%, #000000);
+  --on-accent: var(--white);
+
+  --focus: var(--brand);
+  --focus-ring: rgba(var(--brand-rgb), 0.4);
+
+  --success: color-mix(in srgb, var(--brand) 45%, #000000);
+  --success-soft: color-mix(in srgb, var(--brand) 16%, var(--white));
+  --warning: color-mix(in srgb, var(--brand) 50%, #000000);
+  --warning-soft: color-mix(in srgb, var(--brand) 20%, var(--white));
+  --danger: color-mix(in srgb, var(--brand) 58%, #000000);
+  --danger-soft: color-mix(in srgb, var(--brand) 24%, var(--white));
+  --info: color-mix(in srgb, var(--brand) 48%, #000000);
+  --info-soft: color-mix(in srgb, var(--brand) 18%, var(--white));
+
+  --crisis: color-mix(in srgb, var(--brand) 62%, #000000);
+  --crisis-bg: color-mix(in srgb, var(--brand) 16%, var(--white));
+  --crisis-border: color-mix(in srgb, var(--brand) 46%, var(--white));
+
+  --shadow-sm: 0 1px 2px rgba(var(--brand-rgb), 0.16);
+  --shadow-md: 0 10px 28px rgba(var(--brand-rgb), 0.22);
+  --shadow-lg: 0 20px 44px rgba(var(--brand-rgb), 0.28);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --sidebar-width: 260px;
+  --sidebar-collapsed: 76px;
+  --topbar-height: 64px;
+
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+  --motion-slow: 360ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+
+  --blend-soft: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--brand) 28%, var(--white)) 0%,
+    var(--white) 46%,
+    color-mix(in srgb, var(--brand) 16%, var(--white)) 100%
+  );
+  --blend-panel: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand) 12%, var(--white)) 0%,
+    var(--white) 100%
+  );
+  --blend-sidebar: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--brand) 8%, var(--white)) 0%,
+    var(--brand) 38%,
+    color-mix(in srgb, var(--brand) 82%, #000000) 100%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+    --motion-slow: 0ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--blend-soft);
+  background-attachment: fixed;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink);
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--accent-text);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  color: var(--accent-solid);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: path(inset(50%));
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.app-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.page-header h1 {
+  font-size: clamp(1.55rem, 1.3rem + 0.8vw, 1.95rem);
+  letter-spacing: -0.02em;
+}
+
+.page-header p {
+  color: var(--muted);
+  max-width: 44rem;
+  margin-top: 0.35rem;
+}
+
+.surface-panel {
+  background: var(--blend-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.grid-2 {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid-3 {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 960px) {
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
