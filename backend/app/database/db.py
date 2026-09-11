@@ -40,6 +40,8 @@ def get_connection():
     Open a connection to the encrypted SQLCipher database.
     """
 
+    Path(DATABASE_PATH).parent.mkdir(parents=True, exist_ok=True)
+
     connection = sqlite.connect(
         DATABASE_PATH,
         check_same_thread=False,

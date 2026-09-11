@@ -1,9 +1,25 @@
 import { ApiError, type ApiErrorCode } from '../types/api'
 
-const configuredBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim()
+function resolveApiBaseUrl(): string {
+  const configured = (
+    import.meta.env.VITE_API_BASE_URL as string | undefined
+  )?.trim()
 
-/** Empty base uses the Vite proxy in development. */
-export const API_BASE_URL = configuredBase ?? ''
+  if (configured) {
+    return configured.replace(/\/$/, '')
+  }
+
+  // Production build is served by FastAPI on the same origin.
+  if (import.meta.env.PROD) {
+    return ''
+  }
+
+  // Local Vite development talks to the FastAPI backend directly.
+  return 'http://127.0.0.1:8000'
+}
+
+/** API origin. Empty string means same-origin (production). */
+export const API_BASE_URL = resolveApiBaseUrl()
 
 type TokenGetter = () => string | null
 type UnauthorizedHandler = () => void

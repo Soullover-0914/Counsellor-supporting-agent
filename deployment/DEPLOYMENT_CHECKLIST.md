@@ -1,180 +1,76 @@
-\# Agent 66 — Deployment Checklist
-
-
-
-\## Configuration
-
-
-
-\- \[ ] ENVIRONMENT is set to production
-
-\- \[ ] Production AUTH\_SECRET\_KEY configured
-
-\- \[ ] Production DATABASE\_ENCRYPTION\_KEY configured
-
-\- \[ ] TOKEN\_EXPIRY\_SECONDS verified
-
-\- \[ ] Production secrets are not committed to source control
-
-
-
-\## Database
-
-
-
-\- \[ ] SQLCipher database exists
-
-\- \[ ] Database opens with the configured encryption key
-
-\- \[ ] Database is not plaintext SQLite
-
-\- \[ ] No plaintext database backup is included in the deployment package
-
-\- \[ ] Database backup and retention policy defined
-
-
-
-\## Application
-
-
-
-\- \[ ] Dependencies installed
-
-\- \[ ] Python compilation passes
-
-\- \[ ] Application startup passes
-
-\- \[ ] Root endpoint passes
-
-\- \[ ] Health endpoint passes
-
-\- \[ ] Swagger documentation passes
-
-\- \[ ] OpenAPI specification passes
-
-
-
-\## Authentication
-
-
-
-\- \[ ] Valid credentials authenticate successfully
-
-\- \[ ] Invalid passwords are rejected
-
-\- \[ ] Token expiry is configured
-
-\- \[ ] Password hashes are not returned by API responses
-
-
-
-\## RBAC
-
-
-
-\- \[ ] Student permissions verified
-
-\- \[ ] Counsellor permissions verified
-
-\- \[ ] Mentor permissions verified
-
-\- \[ ] Faculty permissions verified
-
-\- \[ ] HOD permissions verified
-
-\- \[ ] Dean permissions verified
-
-\- \[ ] Admin permissions verified
-
-
-
-\## Safety
-
-
-
-\- \[ ] Consent enforcement verified
-
-\- \[ ] Crisis detection verified
-
-\- \[ ] Immediate crisis escalation verified
-
-\- \[ ] Approved crisis resources verified
-
-\- \[ ] Counselling is not presented as diagnosis or therapy
-
-
-
-\## Sensitive Data
-
-
-
-\- \[ ] Counselling records are restricted
-
-\- \[ ] Unauthorized roles cannot access restricted records
-
-\- \[ ] Aggregate reporting preserves privacy thresholds
-
-\- \[ ] Audit logging is enabled
-
-
-
-\## Infrastructure
-
-
-
-\- \[ ] HTTPS configured
-
-\- \[ ] Firewall/network rules reviewed
-
-\- \[ ] Production secret management configured
-
-\- \[ ] Monitoring configured
-
-\- \[ ] Backup strategy configured
-
-\- \[ ] Recovery procedure documented
-
-\- \[ ] Log retention configured
-
-
-
-\## Governance
-
-
-
-\- \[ ] Institutional approval obtained
-
-\- \[ ] Named human escalation contacts verified
-
-\- \[ ] Emergency contacts verified
-
-\- \[ ] Data retention policy verified
-
-\- \[ ] Access roles reviewed
-
-\- \[ ] Final safety review completed
-
-
-
-\## Regression Testing
-
-
-
-Phase 19 final regression:
-
-
-
-\- Total tests: 75
-
-\- Passed: 75
-
-\- Failed: 0
-
-
-
-Status:
-
-
-
-\*\*READY FOR FINAL REVIEW\*\*
-
+# Agent 66 — Deployment Checklist
+
+## Configuration
+
+- [ ] `ENVIRONMENT=production`
+- [ ] `AUTH_SECRET_KEY` set and **unchanged** across redeploys
+- [ ] `DATABASE_ENCRYPTION_KEY` set and **unchanged** across redeploys
+- [ ] `TOKEN_EXPIRY_SECONDS` verified
+- [ ] Production secrets are **not** committed to source control
+- [ ] `DATABASE_PATH=/var/data/counselling_agent_encrypted.db`
+- [ ] `FRONTEND_DIST=/app/frontend/dist`
+- [ ] `APP_LOGIN_URL=https://YOUR-SERVICE.onrender.com/login`
+- [ ] `PUBLIC_BASE_URL=https://YOUR-SERVICE.onrender.com`
+- [ ] SMTP vars configured (`SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `EMAIL_ADMIN`)
+- [ ] `SEED_DEMO_USERS=true` for first boot only (safe: skips when users already exist)
+
+## Persistent storage (Render)
+
+- [ ] Web service plan supports disks (**Starter** or higher — not Free)
+- [ ] Disk name `agent66-data` (or equivalent)
+- [ ] Mount path `/var/data`
+- [ ] Size **1GB**
+- [ ] After deploy, `/health` shows `"storage_path":"/var/data"`
+- [ ] After redeploy, referrals / resources / records still present
+
+## Database
+
+- [ ] SQLCipher database exists under `/var/data`
+- [ ] Database opens with the configured encryption key
+- [ ] First boot created tables + demo seed once
+- [ ] Second boot / redeploy did **not** wipe data
+- [ ] No plaintext DB committed to git
+
+## Application
+
+- [ ] Docker build succeeds
+- [ ] `/health` returns healthy
+- [ ] `/login` serves the React app
+- [ ] `/api/v1/counselling/...` reachable same-origin
+- [ ] Swagger `/docs` available if needed for ops
+
+## Authentication / RBAC
+
+- [ ] Valid credentials authenticate
+- [ ] Invalid passwords return 401
+- [ ] JWT accepted on protected routes
+- [ ] Student / counsellor / mentor / faculty / HOD / dean / admin permissions verified
+
+## Workflow
+
+- [ ] Signup creates pending registration
+- [ ] Admin receives signup email (SMTP)
+- [ ] Admin approval emails temporary password to student
+- [ ] One-time password change enforced
+- [ ] Temporary password never shown in admin UI
+
+## Persistence verification
+
+- [ ] Login as `hod001` — referrals visible after first boot
+- [ ] Create or note a referral id
+- [ ] Trigger **Manual Deploy** / restart
+- [ ] Same referral id still present
+- [ ] Resources still listed
+- [ ] Counselling records still listed
+
+## Safety / governance
+
+- [ ] Consent / crisis behaviour unchanged
+- [ ] Institutional approval obtained for production use
+- [ ] Named human escalation contacts verified
+
+## Regression
+
+- Local: `backend/test_phase19_4_8.py` (75 tests)
+- Local signup flow: `backend/test_signup_password_workflow.py`
+- Deploy smoke: `backend/test_deploy_persistence.py` with `BASE_URL=https://YOUR-SERVICE.onrender.com`

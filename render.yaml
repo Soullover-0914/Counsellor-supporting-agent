@@ -1,14 +1,22 @@
 # Agent 66 — Render Blueprint
 # Deploy: https://dashboard.render.com/select-repo?type=blueprint
-# Connect the GitHub repo, then set SMTP / Gemini secrets in the dashboard.
+#
+# IMPORTANT:
+# - Persistent Disk requires a paid instance plan (not free).
+# - Keep DATABASE_ENCRYPTION_KEY stable across redeploys or the DB cannot open.
+# - First boot seeds demo data once; later redeploys preserve /var/data.
 
 services:
   - type: web
     name: agent66-counselling
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: free
+    plan: starter
     healthCheckPath: /health
+    disk:
+      name: agent66-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: ENVIRONMENT
         value: production

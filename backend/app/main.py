@@ -2,22 +2,21 @@ from pathlib import Path
 import os
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
 from app.core.config import settings
-
-from app.database.db import init_db
-from app.services.bootstrap import seed_demo_users_if_enabled
+from app.database.db import DATABASE_PATH
+from app.services.startup import initialize_application
 
 
 # ============================================================
-# INITIALIZE DATABASE
+# INITIALIZE DATABASE + PRODUCTION SAFETY
 # ============================================================
 
-init_db()
-seed_demo_users_if_enabled(settings.seed_demo_users)
+initialize_application()
 
 
 # ============================================================
@@ -30,6 +29,17 @@ app = FastAPI(
     description="Agent 66 - Counselling Support Agent",
 )
 
+if settings.environment.strip().lower() != "production":
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://127.0.0.1:5173",
+            "http://localhost:5173",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 app.include_router(router)
 
@@ -68,9 +78,12 @@ async def root():
 
 @app.get("/health")
 async def health():
+    db_path = Path(DATABASE_PATH)
     return {
         "status": "healthy",
         "environment": settings.environment,
+        "database_present": db_path.is_file(),
+        "storage_path": str(db_path.parent),
     }
 
 
