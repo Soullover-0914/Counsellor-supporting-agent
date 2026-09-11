@@ -74,7 +74,7 @@ def send_email(
         with smtplib.SMTP(
             settings.smtp_host.strip(),
             settings.smtp_port,
-            timeout=30,
+            timeout=12,
         ) as server:
             if settings.smtp_use_tls:
                 server.ehlo()

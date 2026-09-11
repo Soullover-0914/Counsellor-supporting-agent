@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 
 # ============================================================
@@ -136,6 +136,10 @@ from app.services.registration import (
     list_registration_requests,
     reject_registration,
     resend_temporary_credentials,
+)
+from app.services.email import (
+    email_configured,
+    notify_student_registration_approved,
 )
 
 
@@ -471,10 +475,11 @@ async def retrieve_registration(
 )
 async def approve_registration_request(
     registration_id: str,
+    background_tasks: BackgroundTasks,
     current_user=Depends(require_roles("admin")),
 ):
     try:
-        registration, email_sent = approve_registration(
+        registration, temporary_password = approve_registration(
             registration_id=registration_id,
             reviewed_by=current_user.username,
         )
@@ -492,6 +497,22 @@ async def approve_registration_request(
             detail=str(exc),
         )
 
+    email_will_send = False
+    if temporary_password:
+        to_email = registration.email
+        username = registration.username
+        password_for_mail = temporary_password
+
+        def _deliver_credentials() -> None:
+            notify_student_registration_approved(
+                to_email=to_email,
+                username=username,
+                temporary_password=password_for_mail,
+            )
+
+        background_tasks.add_task(_deliver_credentials)
+        email_will_send = email_configured()
+
     _audit(
         current_user,
         action="signup_approved",
@@ -506,22 +527,30 @@ async def approve_registration_request(
         action="temporary_credential_issued",
         resource_type="authentication",
         resource_id=registration.username,
-        outcome="success" if email_sent else "failure",
+        outcome="success" if (email_will_send or temporary_password is None) else "failure",
         human_approved=True,
     )
 
+    if temporary_password is None:
+        message = (
+            "Registration was already approved. "
+            "If the student did not receive mail, use Resend temporary credentials."
+        )
+    elif email_will_send:
+        message = (
+            "Registration accepted. Temporary credentials are being emailed "
+            "to the student."
+        )
+    else:
+        message = (
+            "Registration accepted, but email is not configured. "
+            "Use Resend temporary credentials after SMTP is set."
+        )
+
     return ApproveRegistrationResponse(
         registration=registration,
-        email_sent=email_sent,
-        message=(
-            "Registration accepted. Temporary credentials were emailed "
-            "to the student."
-            if email_sent
-            else (
-                "Registration accepted, but the student email could not "
-                "be delivered. Use Resend temporary credentials."
-            )
-        ),
+        email_sent=email_will_send,
+        message=message,
     )
 
 

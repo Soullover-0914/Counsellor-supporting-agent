@@ -289,17 +289,25 @@ def generate_temporary_password(length: int = 14) -> str:
 def approve_registration(
     registration_id: str,
     reviewed_by: str,
-) -> tuple[RegistrationRequest, bool]:
+) -> tuple[RegistrationRequest, str | None]:
     """
     Approve a pending registration and create the student account.
 
-    Returns (registration, credential_email_sent).
+    Returns (registration, temporary_password).
+    temporary_password is None when the request was already approved
+    (idempotent retry after a gateway timeout) or when no new credential
+    was issued.
     """
 
     registration = get_registration_request(registration_id)
 
     if registration is None:
         raise ValueError("Registration request not found.")
+
+    # Idempotent: a prior approve may have committed before the HTTP
+    # response reached the browser (common with SMTP/gateway timeouts).
+    if registration.status == RegistrationStatus.APPROVED:
+        return registration, None
 
     if registration.status != RegistrationStatus.PENDING:
         raise ValueError(
@@ -392,17 +400,9 @@ def approve_registration(
     finally:
         connection.close()
 
-    email_sent = notify_student_registration_approved(
-        to_email=registration.email,
-        username=registration.username,
-        temporary_password=temporary_password,
-    )
-
-    temporary_password = ""
-
     updated = get_registration_request(registration_id)
     assert updated is not None
-    return updated, email_sent
+    return updated, temporary_password
 
 
 def reject_registration(

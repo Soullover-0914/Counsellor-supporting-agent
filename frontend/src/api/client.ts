@@ -88,8 +88,9 @@ function friendlyMessage(status: number, detail: unknown): string {
       return 'Some fields need correction before this can be submitted.'
     case 429:
       return 'Too many requests were sent. Please wait briefly and try again.'
-    case 500:
     case 502:
+      return 'The service timed out while finishing approval. Refresh the registrations list — it may already be approved. If needed, use Resend temporary credentials.'
+    case 500:
     case 503:
     case 504:
       return 'The counselling support service is temporarily unavailable. Please try again shortly.'
