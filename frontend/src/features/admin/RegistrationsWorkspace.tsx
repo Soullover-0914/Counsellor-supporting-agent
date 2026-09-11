@@ -52,12 +52,12 @@ export function RegistrationsWorkspace() {
     setBusy(true)
     try {
       if (confirm === 'approve') {
-        const next = await approveRegistration(selected.registration_id)
-        setSelected(next)
+        const result = await approveRegistration(selected.registration_id)
+        setSelected(result.registration)
         pushToast({
-          tone: 'success',
-          title: 'Registration approved',
-          message: 'Temporary credentials were issued server-side.',
+          tone: result.email_sent ? 'success' : 'info',
+          title: 'Registration accepted',
+          message: result.message,
         })
       } else if (confirm === 'reject') {
         const next = await rejectRegistration(selected.registration_id)

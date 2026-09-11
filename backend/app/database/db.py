@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 from sqlcipher3 import dbapi2 as sqlite
 
@@ -7,8 +8,11 @@ from app.core.config import settings
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
-DATABASE_PATH = (
-    BASE_DIR / "counselling_agent_encrypted.db"
+DATABASE_PATH = Path(
+    os.environ.get(
+        "DATABASE_PATH",
+        str(BASE_DIR / "counselling_agent_encrypted.db"),
+    )
 )
 
 

@@ -1,0 +1,46 @@
+# Agent 66 — Render Blueprint
+# Deploy: https://dashboard.render.com/select-repo?type=blueprint
+# Connect the GitHub repo, then set SMTP / Gemini secrets in the dashboard.
+
+services:
+  - type: web
+    name: agent66-counselling
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: AUTH_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_ENCRYPTION_KEY
+        generateValue: true
+      - key: TOKEN_EXPIRY_SECONDS
+        value: "3600"
+      - key: DATABASE_PATH
+        value: /var/data/counselling_agent_encrypted.db
+      - key: FRONTEND_DIST
+        value: /app/frontend/dist
+      - key: APP_LOGIN_URL
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        sync: false
+      - key: SMTP_FROM_NAME
+        value: Agent 66
+      - key: SMTP_USE_TLS
+        value: "true"
+      - key: EMAIL_ADMIN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

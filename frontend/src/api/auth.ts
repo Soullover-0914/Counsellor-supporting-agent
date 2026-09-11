@@ -1,5 +1,6 @@
 import { apiGet, apiPost } from './client'
 import type {
+  ApproveRegistrationResponse,
   ChangePasswordRequest,
   ChangePasswordResponse,
   LoginRequest,
@@ -35,7 +36,7 @@ export function getRegistration(registrationId: string) {
 }
 
 export function approveRegistration(registrationId: string) {
-  return apiPost<RegistrationRequest>(
+  return apiPost<ApproveRegistrationResponse>(
     `${BASE}/registrations/${encodeURIComponent(registrationId)}/approve`,
   )
 }

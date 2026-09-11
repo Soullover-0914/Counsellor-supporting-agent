@@ -66,19 +66,22 @@ def send_email(
     message["To"] = to_email
     message.set_content(body)
 
+    # Gmail app passwords are often stored with spaces for readability.
+    smtp_password = settings.smtp_password.replace(" ", "").strip()
+    smtp_username = settings.smtp_username.strip()
+
     try:
         with smtplib.SMTP(
-            settings.smtp_host,
+            settings.smtp_host.strip(),
             settings.smtp_port,
             timeout=30,
         ) as server:
             if settings.smtp_use_tls:
+                server.ehlo()
                 server.starttls()
+                server.ehlo()
 
-            server.login(
-                settings.smtp_username,
-                settings.smtp_password,
-            )
+            server.login(smtp_username, smtp_password)
             server.send_message(message)
 
         logger.info(
@@ -88,11 +91,23 @@ def send_email(
         )
         return True
 
+    except smtplib.SMTPAuthenticationError as exc:
+        # SMTP replies never include the password; safe to log code + brief reply.
+        logger.error(
+            "email_delivery_failed subject=%s error_type=SMTPAuthenticationError "
+            "smtp_code=%s smtp_error=%s hint=check_app_password_and_restart_backend",
+            subject,
+            getattr(exc, "smtp_code", None),
+            (exc.smtp_error.decode() if isinstance(exc.smtp_error, bytes) else exc.smtp_error),
+        )
+        return False
+
     except Exception as exc:
         logger.error(
-            "email_delivery_failed subject=%s error_type=%s",
+            "email_delivery_failed subject=%s error_type=%s detail=%s",
             subject,
             type(exc).__name__,
+            str(exc)[:200],
         )
         return False
 
@@ -127,7 +142,9 @@ def notify_student_registration_approved(
     temporary_password: str,
 ) -> bool:
     body = (
-        "Registration approved.\n\n"
+        "Your Agent 66 registration request has been accepted.\n\n"
+        "Status: Approved\n\n"
+        "You can now sign in with the temporary credentials below.\n\n"
         f"Username:\n{username}\n\n"
         f"Temporary password:\n{temporary_password}\n\n"
         f"Login:\n{settings.app_login_url}\n\n"
@@ -139,6 +156,6 @@ def notify_student_registration_approved(
     )
     return send_email(
         to_email=to_email,
-        subject="Agent 66 — Registration Approved",
+        subject="Agent 66 — Registration Accepted",
         body=body,
     )

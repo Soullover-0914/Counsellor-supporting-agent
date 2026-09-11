@@ -61,6 +61,7 @@ from app.models.aggregate_report import (
 )
 
 from app.models.registration import (
+    ApproveRegistrationResponse,
     ChangePasswordRequest,
     ChangePasswordResponse,
     RegistrationRequest,
@@ -466,7 +467,7 @@ async def retrieve_registration(
 
 @router.post(
     "/registrations/{registration_id}/approve",
-    response_model=RegistrationRequest,
+    response_model=ApproveRegistrationResponse,
 )
 async def approve_registration_request(
     registration_id: str,
@@ -509,7 +510,19 @@ async def approve_registration_request(
         human_approved=True,
     )
 
-    return registration
+    return ApproveRegistrationResponse(
+        registration=registration,
+        email_sent=email_sent,
+        message=(
+            "Registration accepted. Temporary credentials were emailed "
+            "to the student."
+            if email_sent
+            else (
+                "Registration accepted, but the student email could not "
+                "be delivered. Use Resend temporary credentials."
+            )
+        ),
+    )
 
 
 @router.post(

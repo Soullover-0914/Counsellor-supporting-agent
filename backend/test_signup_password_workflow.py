@@ -116,7 +116,9 @@ def main():
         "ADMIN_APPROVE",
         status == 200
         and isinstance(approved, dict)
-        and approved.get("status") == "approved",
+        and isinstance(approved.get("registration"), dict)
+        and approved["registration"].get("status") == "approved"
+        and "email_sent" in approved,
         f"STATUS={status}",
     )
 

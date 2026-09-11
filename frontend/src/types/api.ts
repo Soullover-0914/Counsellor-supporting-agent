@@ -72,6 +72,12 @@ export interface RegistrationRequest {
   reviewed_by: string | null
 }
 
+export interface ApproveRegistrationResponse {
+  registration: RegistrationRequest
+  email_sent: boolean
+  message: string
+}
+
 export interface ChangePasswordRequest {
   new_password: string
   confirm_password: string

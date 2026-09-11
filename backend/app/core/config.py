@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     # Production security
     token_expiry_seconds: int = 3600
 
+    # Public site URL (used to build login links in emails)
+    public_base_url: str = "http://127.0.0.1:5173"
     # Public login URL included in student approval emails
     app_login_url: str = "http://127.0.0.1:5173/login"
 

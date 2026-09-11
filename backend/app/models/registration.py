@@ -64,6 +64,12 @@ class RegistrationRequest(BaseModel):
     reviewed_by: str | None = None
 
 
+class ApproveRegistrationResponse(BaseModel):
+    registration: RegistrationRequest
+    email_sent: bool
+    message: str
+
+
 class RejectRegistrationRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=500)
 
