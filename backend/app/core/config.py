@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     email_counsellor: str = "231fa04b14@gmail.com"
     email_mentor: str = "jyothiswaroop0914@gmail.com"
 
+    # When true, create demo role accounts if the database is empty
+    seed_demo_users: bool = False
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

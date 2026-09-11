@@ -9,6 +9,7 @@ from app.api.routes import router
 from app.core.config import settings
 
 from app.database.db import init_db
+from app.services.bootstrap import seed_demo_users_if_enabled
 
 
 # ============================================================
@@ -16,6 +17,7 @@ from app.database.db import init_db
 # ============================================================
 
 init_db()
+seed_demo_users_if_enabled(settings.seed_demo_users)
 
 
 # ============================================================

@@ -86,6 +86,15 @@ def hash_password(password: str) -> str:
     """
 
     validate_password_policy(password)
+    return hash_password_material(password)
+
+
+def hash_password_material(password: str) -> str:
+    """
+    Hash password bytes without enforcing the interactive policy.
+
+    Used for bootstrap/seed of established demo accounts only.
+    """
 
     salt = base64.urlsafe_b64encode(
         secrets.token_bytes(16)
