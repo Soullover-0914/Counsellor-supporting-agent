@@ -111,19 +111,19 @@ def _seed_users(cursor, now: str) -> int:
 def _seed_operational_demo(cursor, now: str) -> None:
     """Insert demo referrals and related records for empty first-boot DBs."""
 
+    today = datetime.now(timezone.utc).date()
     tomorrow = (
         datetime.now(timezone.utc) + timedelta(days=1)
     ).replace(microsecond=0).isoformat()
-    next_week = (
-        datetime.now(timezone.utc) + timedelta(days=7)
-    ).replace(microsecond=0).isoformat()
+    next_week = (today + timedelta(days=7)).isoformat()
+    today_date = today.isoformat()
 
     demo_referrals = [
         (
             "REF-DEMO01",
             "STU001",
-            "self_request",
-            "medium",
+            "self_referral",
+            "support",
             "assigned",
             "counsellor001",
             now,
@@ -132,7 +132,7 @@ def _seed_operational_demo(cursor, now: str) -> None:
             "REF-DEMO02",
             "STU002",
             "mentor_referral",
-            "high",
+            "urgent",
             "pending",
             None,
             now,
@@ -141,7 +141,7 @@ def _seed_operational_demo(cursor, now: str) -> None:
             "REF-DEMO03",
             "STU001",
             "faculty_referral",
-            "low",
+            "normal",
             "in_progress",
             "counsellor001",
             now,
@@ -240,12 +240,78 @@ def _seed_operational_demo(cursor, now: str) -> None:
             "STU001",
             "deadline_extension",
             "faculty001",
-            now,
+            today_date,
             next_week,
             "requested",
             now,
         ),
     )
+
+
+def repair_invalid_demo_rows() -> int:
+    """
+    Repair first-boot demo rows that used invalid urgency/source/date formats.
+
+    Safe to run on every startup; only updates known bad demo values.
+    """
+
+    connection = get_connection()
+    fixed = 0
+    try:
+        cursor = connection.cursor()
+
+        repairs = [
+            (
+                """
+                UPDATE referrals
+                SET urgency = 'support', source = 'self_referral'
+                WHERE referral_id = 'REF-DEMO01'
+                  AND (urgency = 'medium' OR source = 'self_request')
+                """,
+            ),
+            (
+                """
+                UPDATE referrals
+                SET urgency = 'urgent'
+                WHERE referral_id = 'REF-DEMO02'
+                  AND urgency IN ('medium', 'high')
+                """,
+            ),
+            (
+                """
+                UPDATE referrals
+                SET urgency = 'normal'
+                WHERE referral_id = 'REF-DEMO03'
+                  AND urgency IN ('medium', 'low')
+                """,
+            ),
+            (
+                """
+                UPDATE accommodations
+                SET
+                    start_date = substr(start_date, 1, 10),
+                    end_date = substr(end_date, 1, 10)
+                WHERE accommodation_id = 'ACC-DEMO01'
+                  AND (
+                    instr(start_date, 'T') > 0
+                    OR instr(end_date, 'T') > 0
+                  )
+                """,
+            ),
+        ]
+
+        for (sql,) in repairs:
+            cursor.execute(sql)
+            fixed += cursor.rowcount
+
+        connection.commit()
+    finally:
+        connection.close()
+
+    if fixed:
+        logger.info("demo_row_repair_applied changes=%s", fixed)
+
+    return fixed
 
 
 def run_first_boot_seed() -> dict[str, int | bool]:

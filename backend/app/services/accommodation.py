@@ -93,7 +93,15 @@ def _parse_date(value):
     if not value:
         return None
 
-    return date.fromisoformat(value)
+    text = str(value).strip()
+    if not text:
+        return None
+
+    # Accept plain dates and full ISO datetimes written by older seeds.
+    if "T" in text:
+        text = text.split("T", 1)[0]
+
+    return date.fromisoformat(text)
 
 
 def _row_to_accommodation(row) -> AcademicAccommodation:

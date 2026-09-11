@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.database.db import DATABASE_PATH, init_db
 from app.services.bootstrap import (
     database_file_exists,
+    repair_invalid_demo_rows,
     run_first_boot_seed,
     should_run_first_boot_seed,
 )
@@ -103,6 +104,7 @@ def initialize_application() -> None:
         run_first_boot_seed()
         logger.info("Database ready (first-boot seed applied)")
     else:
+        repair_invalid_demo_rows()
         logger.info("Database ready (existing data preserved)")
 
     # Helpful for operators inspecting container logs
