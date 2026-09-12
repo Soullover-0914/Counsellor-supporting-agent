@@ -24,14 +24,10 @@ class Settings(BaseSettings):
     # Public login URL included in student approval emails
     app_login_url: str = "http://127.0.0.1:5173/login"
 
-    # SMTP / email (secrets via environment only)
-    smtp_host: str = ""
-    smtp_port: int = 587
-    smtp_username: str = ""
-    smtp_password: str = ""
-    smtp_use_tls: bool = True
-    smtp_from_email: str = ""
-    smtp_from_name: str = "Agent 66 Counselling Support"
+    # Brevo transactional email (secrets via environment only)
+    brevo_api_key: str = ""
+    brevo_from_email: str = ""
+    brevo_from_name: str = "Agent 66"
 
     # Centralised institutional role recipients (non-secret)
     email_admin: str = "231fa04543@gmail.com"

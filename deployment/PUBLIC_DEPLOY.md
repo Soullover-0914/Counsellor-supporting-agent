@@ -28,31 +28,22 @@ Free / ephemeral container disks reset on every redeploy. The encrypted SQLite f
 
 First boot on an empty disk seeds demo users + sample referrals/resources/records once. Later redeploys preserve `/var/data`.
 
-## Email on Render (important)
+## Email on Render (Brevo)
 
-Render **free** instances block outbound SMTP ports `25`, `465`, and `587`.
-Gmail SMTP that works on your laptop will time out on free Render and cause **502**.
+Agent 66 sends mail through **Brevo Transactional Email API** only. SMTP is not used.
 
-### Recommended (HTTPS — works on free and paid)
-
-1. Create a free [Brevo](https://www.brevo.com/) account
-2. Verify your sender email (your Gmail is fine after verification)
-3. Copy the **API key**
-4. In Render → Environment set:
-   - `BREVO_API_KEY=...`
-   - `SMTP_FROM_EMAIL=your-verified-sender@gmail.com`
-   - `SMTP_FROM_NAME=Agent 66`
+1. Create a [Brevo](https://www.brevo.com/) account and verify the sender address
+2. Create a transactional API key
+3. In Render → Environment set:
+   - `BREVO_API_KEY` (secret)
+   - `BREVO_FROM_EMAIL` (verified sender)
+   - `BREVO_FROM_NAME=Agent 66`
    - `EMAIL_ADMIN=...`
    - `APP_LOGIN_URL=https://YOUR-SERVICE.onrender.com/login`
-5. Manual Deploy
-6. Approve / Resend credentials again
+4. Manual Deploy
+5. Approve / Resend credentials
 
-Optional alternative: `RESEND_API_KEY` (Resend.com).
-
-### SMTP only (paid Render instance)
-
-Keep `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, Gmail App Password.
-SMTP is a fallback when no Brevo/Resend key is set.
+Never commit the API key. The frontend never calls Brevo.
 
 
 ## Redeploy safety

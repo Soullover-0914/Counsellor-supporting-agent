@@ -19,6 +19,7 @@ from app.models.registration import (
     SignupRequest,
 )
 from app.services.email import (
+    mask_email,
     notify_admin_signup_request,
     notify_student_registration_approved,
 )
@@ -204,19 +205,12 @@ def create_registration_request(
         connection.close()
 
     # Soft-fail email: registration remains pending regardless.
-    # Run in a daemon thread so signup never times out waiting on SMTP.
-    import threading
-
-    threading.Thread(
-        target=notify_admin_signup_request,
-        kwargs={
-            "student_name": registration.student_name,
-            "student_id": registration.student_id,
-            "email": registration.email,
-            "username": registration.username,
-        },
-        daemon=True,
-    ).start()
+    notify_admin_signup_request(
+        student_name=registration.student_name,
+        student_id=registration.student_id,
+        email=registration.email,
+        username=registration.username,
+    )
 
     return registration
 
@@ -312,7 +306,7 @@ def approve_registration(
         raise ValueError("Registration request not found.")
 
     # Idempotent: a prior approve may have committed before the HTTP
-    # response reached the browser (common with SMTP/gateway timeouts).
+    # response reached the browser (common with provider/gateway timeouts).
     if registration.status == RegistrationStatus.APPROVED:
         return registration, None
 
@@ -542,11 +536,14 @@ def resend_temporary_credentials(
             temporary_password = ""
             if not email_sent:
                 raise ValueError(
-                    "Account was recreated but email delivery failed "
-                    f"({reason}). Set BREVO_API_KEY (recommended on Render) "
-                    "or fix SMTP, then try Resend again."
+                    "Account was recreated but Brevo did not accept the email "
+                    f"({reason}). Set BREVO_API_KEY and BREVO_FROM_EMAIL, "
+                    "then use Resend temporary credentials again."
                 )
-            return True, f"Credentials emailed to {registration.email}."
+            return True, (
+                "Credential email accepted by Brevo for "
+                f"{mask_email(registration.email)}."
+            )
 
         if not bool(user["active"]):
             raise ValueError("Student account is inactive.")
@@ -569,10 +566,10 @@ def resend_temporary_credentials(
         if not email_sent:
             temporary_password = ""
             raise ValueError(
-                "Email delivery failed "
+                "Brevo did not accept the credential email "
                 f"({reason}). The temporary password was NOT changed. "
-                "On Render use BREVO_API_KEY (HTTPS email) because free "
-                "instances block Gmail SMTP ports. Then try Resend again."
+                "Set BREVO_API_KEY and BREVO_FROM_EMAIL, then use "
+                "Resend temporary credentials again."
             )
 
         password_hash = hash_password(temporary_password)
@@ -593,4 +590,7 @@ def resend_temporary_credentials(
     finally:
         connection.close()
 
-    return True, f"Credentials emailed to {recipient}."
+    return True, (
+        "Credential email accepted by Brevo for "
+        f"{mask_email(recipient)}."
+    )

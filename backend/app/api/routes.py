@@ -532,20 +532,20 @@ async def approve_registration_request(
         )
     elif email_sent:
         message = (
-            "Registration accepted. Temporary credentials were emailed to "
-            f"{mask_email(registration.email)}."
+            "Registration accepted. Credential email was accepted by Brevo "
+            f"for {mask_email(registration.email)}."
         )
     elif not email_configured():
         message = (
-            "Registration accepted, but SMTP is not configured on the server. "
-            "Set SMTP_* env vars on Render (use SMTP_PORT=465 for Gmail), "
-            "then use Resend temporary credentials."
+            "Registration accepted, but Brevo is not configured. "
+            "Set BREVO_API_KEY and BREVO_FROM_EMAIL, then use Resend "
+            "temporary credentials."
         )
     else:
         message = (
-            "Registration accepted, but email delivery failed "
+            "Registration accepted, but the credential email was not accepted "
             f"({email_reason or 'unknown'}). "
-            "Set SMTP_PORT=465 on Render and use Resend temporary credentials."
+            "Check Brevo sender verification, then use Resend temporary credentials."
         )
 
     return ApproveRegistrationResponse(
@@ -644,7 +644,7 @@ async def resend_registration_credentials(
 async def get_email_status(
     current_user=Depends(require_roles("admin")),
 ):
-    """Admin-only SMTP/API configuration check (no secrets returned)."""
+    """Admin-only Brevo configuration check (no secrets returned)."""
 
     _audit(
         current_user,
@@ -691,11 +691,11 @@ async def send_test_email(
         "recipient_masked": mask_email(target),
         "reason": reason,
         "message": (
-            f"Test email sent to {mask_email(target)}."
+            f"Test email accepted by Brevo for {mask_email(target)}."
             if ok
             else (
-                f"Test email failed ({reason}). "
-                "Set BREVO_API_KEY on Render for reliable delivery."
+                f"Test email was not accepted ({reason}). "
+                "Set BREVO_API_KEY and BREVO_FROM_EMAIL on the server."
             )
         ),
     }

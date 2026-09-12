@@ -26,6 +26,8 @@ npm run dev -- --host 127.0.0.1 --port 5173
 
 Copy `deployment/.env.example` patterns into `backend/.env`. Never commit secrets.
 
+Email is sent by the backend through **Brevo** (`BREVO_API_KEY` and `BREVO_FROM_EMAIL` in server environment only). The frontend never talks to Brevo.
+
 ## Public deployment (Render)
 
 See `deployment/PUBLIC_DEPLOY.md` and `deployment/DEPLOYMENT_CHECKLIST.md`.

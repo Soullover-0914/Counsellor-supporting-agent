@@ -11,7 +11,10 @@
 - [ ] `FRONTEND_DIST=/app/frontend/dist`
 - [ ] `APP_LOGIN_URL=https://YOUR-SERVICE.onrender.com/login`
 - [ ] `PUBLIC_BASE_URL=https://YOUR-SERVICE.onrender.com`
-- [ ] SMTP vars configured (`SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL`, `EMAIL_ADMIN`)
+- [ ] `BREVO_API_KEY` set (Render secret; never committed)
+- [ ] `BREVO_FROM_EMAIL` verified sender in Brevo
+- [ ] `BREVO_FROM_NAME=Agent 66`
+- [ ] `EMAIL_ADMIN` configured
 - [ ] `SEED_DEMO_USERS=true` for first boot only (safe: skips when users already exist)
 
 ## Persistent storage (Render)
@@ -49,7 +52,7 @@
 ## Workflow
 
 - [ ] Signup creates pending registration
-- [ ] Admin receives signup email (SMTP)
+- [ ] Admin receives signup email (Brevo)
 - [ ] Admin approval emails temporary password to student
 - [ ] One-time password change enforced
 - [ ] Temporary password never shown in admin UI
