@@ -19,7 +19,7 @@ export function RegistrationsWorkspace() {
   const [items, setItems] = useState<RegistrationRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
   const [selected, setSelected] = useState<RegistrationRequest | null>(null)
   const [confirm, setConfirm] = useState<'approve' | 'reject' | 'resend' | null>(null)
   const [busy, setBusy] = useState(false)
@@ -32,7 +32,10 @@ export function RegistrationsWorkspace() {
       setItems(next)
       setSelected((current) => {
         if (!current) return null
-        return next.find((item) => item.registration_id === current.registration_id) ?? null
+        return (
+          next.find((item) => item.registration_id === current.registration_id) ??
+          null
+        )
       })
     } catch (err) {
       setError(
@@ -52,12 +55,24 @@ export function RegistrationsWorkspace() {
     return items.filter((item) => item.status === statusFilter)
   }, [items, statusFilter])
 
+  useEffect(() => {
+    if (!selected) return
+    const visible = filtered.some(
+      (item) => item.registration_id === selected.registration_id,
+    )
+    if (!visible) {
+      setSelected(null)
+      setConfirm(null)
+    }
+  }, [filtered, selected])
+
   const runAction = async () => {
     if (!selected || !confirm) return
     setBusy(true)
     try {
       if (confirm === 'approve') {
         const result = await approveRegistration(selected.registration_id)
+        setStatusFilter('approved')
         setSelected(result.registration)
         pushToast({
           tone: result.email_sent ? 'success' : 'info',
@@ -66,6 +81,7 @@ export function RegistrationsWorkspace() {
         })
       } else if (confirm === 'reject') {
         const next = await rejectRegistration(selected.registration_id)
+        setStatusFilter('rejected')
         setSelected(next)
         pushToast({ tone: 'success', title: 'Registration rejected' })
       } else {
@@ -79,6 +95,11 @@ export function RegistrationsWorkspace() {
       setConfirm(null)
       await load()
     } catch (err) {
+      if (err instanceof ApiError && (err.status === 400 || err.status === 404)) {
+        setSelected(null)
+        setConfirm(null)
+        await load()
+      }
       pushToast({
         tone: 'error',
         title: 'Action failed',
@@ -110,10 +131,10 @@ export function RegistrationsWorkspace() {
           }
           style={{ width: 200 }}
         >
+          <option value="all">All</option>
           <option value="pending">Pending</option>
           <option value="approved">Approved</option>
           <option value="rejected">Rejected</option>
-          <option value="all">All</option>
         </Select>
       </div>
 
