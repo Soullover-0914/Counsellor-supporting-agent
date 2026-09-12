@@ -355,3 +355,157 @@ def seed_demo_users_if_enabled(enabled: bool) -> int:
         return 0
     result = run_first_boot_seed()
     return int(result["users_created"])
+
+
+DEFAULT_USERNAMES = {username for username, _, _, _ in DEMO_USERS}
+DEFAULT_STUDENT_IDS = {
+    student_id
+    for _, _, _, student_id in DEMO_USERS
+    if student_id
+}
+
+
+def reset_to_default_accounts() -> dict[str, int]:
+    """
+    Remove all signup/approval registrations and non-default users.
+
+    Keeps only the eight default demo accounts. Existing default-account
+    passwords are left unchanged. Missing defaults are recreated.
+    """
+
+    connection = get_connection()
+    removed_users = 0
+    removed_registrations = 0
+    removed_referrals = 0
+    removed_records = 0
+    removed_appointments = 0
+    removed_accommodations = 0
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute("SELECT COUNT(*) AS count FROM registration_requests")
+        removed_registrations = int(cursor.fetchone()["count"])
+        cursor.execute("DELETE FROM registration_requests")
+
+        placeholders = ",".join("?" for _ in DEFAULT_USERNAMES)
+        cursor.execute(
+            f"""
+            SELECT username FROM users
+            WHERE username NOT IN ({placeholders})
+            """,
+            tuple(DEFAULT_USERNAMES),
+        )
+        extra_usernames = [row["username"] for row in cursor.fetchall()]
+        removed_users = len(extra_usernames)
+
+        if extra_usernames:
+            cursor.execute(
+                f"""
+                DELETE FROM users
+                WHERE username NOT IN ({placeholders})
+                """,
+                tuple(DEFAULT_USERNAMES),
+            )
+
+        # Remove operational rows not tied to the default demo students.
+        student_placeholders = ",".join("?" for _ in DEFAULT_STUDENT_IDS)
+        student_args = tuple(DEFAULT_STUDENT_IDS)
+
+        cursor.execute(
+            f"""
+            SELECT COUNT(*) AS count FROM referrals
+            WHERE student_id NOT IN ({student_placeholders})
+            """,
+            student_args,
+        )
+        removed_referrals = int(cursor.fetchone()["count"])
+        cursor.execute(
+            f"""
+            DELETE FROM referrals
+            WHERE student_id NOT IN ({student_placeholders})
+            """,
+            student_args,
+        )
+
+        cursor.execute(
+            f"""
+            SELECT COUNT(*) AS count FROM counselling_records
+            WHERE student_id NOT IN ({student_placeholders})
+            """,
+            student_args,
+        )
+        removed_records = int(cursor.fetchone()["count"])
+        cursor.execute(
+            f"""
+            DELETE FROM counselling_records
+            WHERE student_id NOT IN ({student_placeholders})
+            """,
+            student_args,
+        )
+
+        cursor.execute(
+            f"""
+            SELECT COUNT(*) AS count FROM appointments
+            WHERE student_id NOT IN ({student_placeholders})
+            """,
+            student_args,
+        )
+        removed_appointments = int(cursor.fetchone()["count"])
+        cursor.execute(
+            f"""
+            DELETE FROM appointments
+            WHERE student_id NOT IN ({student_placeholders})
+            """,
+            student_args,
+        )
+
+        cursor.execute(
+            f"""
+            SELECT COUNT(*) AS count FROM accommodations
+            WHERE student_id NOT IN ({student_placeholders})
+            """,
+            student_args,
+        )
+        removed_accommodations = int(cursor.fetchone()["count"])
+        cursor.execute(
+            f"""
+            DELETE FROM accommodations
+            WHERE student_id NOT IN ({student_placeholders})
+            """,
+            student_args,
+        )
+
+        connection.commit()
+    finally:
+        connection.close()
+
+    # Recreate any missing default accounts without touching existing ones.
+    now = datetime.now(timezone.utc).isoformat()
+    connection = get_connection()
+    restored = 0
+    try:
+        cursor = connection.cursor()
+        restored = _seed_users(cursor, now)
+        connection.commit()
+    finally:
+        connection.close()
+
+    logger.info(
+        "reset_to_default_accounts removed_users=%s removed_registrations=%s "
+        "restored_defaults=%s",
+        removed_users,
+        removed_registrations,
+        restored,
+    )
+
+    return {
+        "removed_users": removed_users,
+        "removed_registrations": removed_registrations,
+        "removed_referrals": removed_referrals,
+        "removed_records": removed_records,
+        "removed_appointments": removed_appointments,
+        "removed_accommodations": removed_accommodations,
+        "restored_default_users": restored,
+        "kept_users": len(DEFAULT_USERNAMES),
+    }

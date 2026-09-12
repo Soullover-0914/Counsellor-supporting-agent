@@ -668,6 +668,38 @@ async def get_email_status(
     return email_status()
 
 
+@router.post("/system/reset-default-users")
+async def reset_default_users(
+    current_user=Depends(require_roles("admin")),
+):
+    """
+    Admin-only cleanup:
+    - delete all signup/approval registration requests
+    - delete every user except the eight default accounts
+    - remove operational rows for non-default student IDs
+    """
+
+    from app.services.bootstrap import reset_to_default_accounts
+
+    result = reset_to_default_accounts()
+
+    _audit(
+        current_user,
+        action="reset_default_users",
+        resource_type="system",
+        outcome="success",
+        human_approved=True,
+    )
+
+    return {
+        "message": (
+            "Signup/approval registrations cleared. "
+            "Only default accounts remain."
+        ),
+        **result,
+    }
+
+
 # ============================================================
 # 1. COUNSELLING REQUEST ANALYSIS
 # ============================================================
