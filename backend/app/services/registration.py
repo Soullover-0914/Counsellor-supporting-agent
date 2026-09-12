@@ -29,6 +29,30 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _credential_email_failure_message(reason: str) -> str:
+    if reason == "EMAIL_NOT_CONFIGURED":
+        return (
+            "Brevo is not configured on this server. "
+            "Set BREVO_API_KEY and BREVO_FROM_EMAIL, then use "
+            "Resend temporary credentials again. "
+            "The temporary password was NOT changed."
+        )
+    if reason in {"EMAIL_FAILED_HTTP_401", "EMAIL_FAILED_HTTP_403"}:
+        return (
+            "Brevo email configuration is invalid or the sender is not verified. "
+            "The temporary password was NOT changed."
+        )
+    if reason == "EMAIL_FAILED_HTTP_429":
+        return (
+            "Brevo rate-limited the request. Try again shortly. "
+            "The temporary password was NOT changed."
+        )
+    return (
+        f"Brevo did not accept the credential email ({reason}). "
+        "The temporary password was NOT changed."
+    )
+
+
 def _row_to_registration(row) -> RegistrationRequest:
     return RegistrationRequest(
         registration_id=row["registration_id"],
@@ -535,11 +559,7 @@ def resend_temporary_credentials(
             )
             temporary_password = ""
             if not email_sent:
-                raise ValueError(
-                    "Account was recreated but Brevo did not accept the email "
-                    f"({reason}). Set BREVO_API_KEY and BREVO_FROM_EMAIL, "
-                    "then use Resend temporary credentials again."
-                )
+                raise ValueError(_credential_email_failure_message(reason))
             return True, (
                 "Credential email accepted by Brevo for "
                 f"{mask_email(registration.email)}."
@@ -565,12 +585,7 @@ def resend_temporary_credentials(
 
         if not email_sent:
             temporary_password = ""
-            raise ValueError(
-                "Brevo did not accept the credential email "
-                f"({reason}). The temporary password was NOT changed. "
-                "Set BREVO_API_KEY and BREVO_FROM_EMAIL, then use "
-                "Resend temporary credentials again."
-            )
+            raise ValueError(_credential_email_failure_message(reason))
 
         password_hash = hash_password(temporary_password)
         temporary_password = ""

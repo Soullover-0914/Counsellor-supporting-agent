@@ -79,6 +79,17 @@ class BrevoEmailTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertEqual(reason, "EMAIL_NOT_CONFIGURED")
 
+    def test_missing_from_email_fails_safely(self):
+        with patch.dict(os.environ, {"BREVO_FROM_EMAIL": ""}, clear=False):
+            with patch.object(email_service.settings, "brevo_from_email", ""):
+                ok, reason = email_service.send_email(
+                    to_email="student@example.com",
+                    subject="t",
+                    body="b",
+                )
+        self.assertFalse(ok)
+        self.assertEqual(reason, "EMAIL_NOT_CONFIGURED")
+
     def test_successful_brevo_request(self):
         fake = _FakeResponse(201, {"messageId": "abc-123"})
         with patch("urllib.request.urlopen", return_value=fake) as mocked:
@@ -254,6 +265,23 @@ class BrevoEmailTests(unittest.TestCase):
         self.assertIn("notify_student_registration_approved", source)
         self.assertNotIn("smtplib", source)
         self.assertNotIn("SMTP_HOST", inspect.getsource(registration))
+
+    def test_failure_messages_are_safe_and_specific(self):
+        from app.services.registration import _credential_email_failure_message
+
+        missing = _credential_email_failure_message("EMAIL_NOT_CONFIGURED")
+        auth = _credential_email_failure_message("EMAIL_FAILED_HTTP_401")
+        self.assertIn("NOT changed", missing)
+        self.assertIn("not configured", missing.lower())
+        self.assertIn("sender is not verified", auth.lower())
+        self.assertNotIn("xkeysib", missing.lower())
+        self.assertNotIn("xkeysib", auth.lower())
+
+    def test_env_file_points_at_backend_dotenv(self):
+        from app.core.config import _ENV_FILE
+
+        self.assertEqual(_ENV_FILE.name, ".env")
+        self.assertEqual(_ENV_FILE.parent.name, "backend")
 
     def test_temporary_password_not_stored_plaintext(self):
         import inspect

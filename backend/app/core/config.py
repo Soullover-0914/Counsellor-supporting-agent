@@ -1,4 +1,9 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_BACKEND_ROOT = Path(__file__).resolve().parents[2]
+_ENV_FILE = _BACKEND_ROOT / ".env"
 
 
 class Settings(BaseSettings):
@@ -40,9 +45,10 @@ class Settings(BaseSettings):
     seed_demo_users: bool = False
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
+        env_file=_ENV_FILE,
+        env_file_encoding="utf-8-sig",
         extra="ignore",
+        env_ignore_empty=True,
     )
 
 
