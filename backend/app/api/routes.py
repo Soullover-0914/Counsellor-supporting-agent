@@ -499,8 +499,9 @@ async def approve_registration_request(
         )
 
     email_sent = False
+    email_reason = ""
     if temporary_password:
-        email_sent = notify_student_registration_approved(
+        email_sent, email_reason = notify_student_registration_approved(
             to_email=registration.email,
             username=registration.username,
             temporary_password=temporary_password,
@@ -537,12 +538,14 @@ async def approve_registration_request(
     elif not email_configured():
         message = (
             "Registration accepted, but SMTP is not configured on the server. "
-            "Set SMTP_* env vars on Render, redeploy, then use Resend."
+            "Set SMTP_* env vars on Render (use SMTP_PORT=465 for Gmail), "
+            "then use Resend temporary credentials."
         )
     else:
         message = (
-            "Registration accepted, but the student email could not be delivered. "
-            "Check Render logs / Gmail app password, then use Resend temporary credentials."
+            "Registration accepted, but email delivery failed "
+            f"({email_reason or 'unknown'}). "
+            "Set SMTP_PORT=465 on Render and use Resend temporary credentials."
         )
 
     return ApproveRegistrationResponse(
@@ -600,7 +603,7 @@ async def resend_registration_credentials(
     current_user=Depends(require_roles("admin")),
 ):
     try:
-        email_sent = resend_temporary_credentials(
+        email_sent, detail = resend_temporary_credentials(
             registration_id
         )
 
@@ -629,27 +632,11 @@ async def resend_registration_credentials(
     registration = get_registration_request(registration_id)
     recipient = registration.email if registration else ""
 
-    if email_sent:
-        message = (
-            "Temporary credentials were emailed to "
-            f"{mask_email(recipient)}."
-        )
-    elif not email_configured():
-        message = (
-            "Password was regenerated, but SMTP is not configured on Render. "
-            "Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_EMAIL, then redeploy."
-        )
-    else:
-        message = (
-            "Password was regenerated, but delivery to "
-            f"{mask_email(recipient)} failed. Check Render logs and Gmail app password."
-        )
-
     return {
         "registration_id": registration_id,
         "email_sent": email_sent,
         "recipient_masked": mask_email(recipient) if recipient else None,
-        "message": message,
+        "message": detail,
     }
 
 

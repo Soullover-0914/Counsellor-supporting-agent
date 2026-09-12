@@ -13,6 +13,7 @@ import smtplib
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeout
 from email.message import EmailMessage
+from typing import Tuple
 
 from app.core.config import settings
 
@@ -31,9 +32,6 @@ ROLE_EMAIL_RECIPIENTS = {
 def _smtp_settings() -> dict[str, str | int | bool]:
     """
     Read SMTP settings from process environment first, then settings.
-
-    Render injects secrets as env vars; reading them at send-time avoids
-    stale empty values if the process was started before secrets were saved.
     """
 
     def env(name: str, fallback: str = "") -> str:
@@ -91,7 +89,10 @@ def email_status() -> dict[str, bool | str]:
         "smtp_password_set": bool(cfg["password"]),
         "smtp_from_email_set": bool(cfg["from_email"]),
         "smtp_port": str(cfg["port"]),
-        "app_login_url": settings.app_login_url,
+        "app_login_url": (
+            os.environ.get("APP_LOGIN_URL", "").strip()
+            or settings.app_login_url
+        ),
     }
 
 
@@ -106,20 +107,22 @@ def mask_email(address: str) -> str:
     return f"{visible}@{domain}"
 
 
-def _deliver(message: EmailMessage, cfg: dict[str, str | int | bool]) -> None:
-    host = str(cfg["host"])
-    port = int(cfg["port"])
-    username = str(cfg["username"])
-    password = str(cfg["password"])
-    use_tls = bool(cfg["use_tls"])
-
-    if port == 465 or not use_tls:
-        with smtplib.SMTP_SSL(host, port, timeout=20) as server:
+def _deliver_on_port(
+    message: EmailMessage,
+    *,
+    host: str,
+    port: int,
+    username: str,
+    password: str,
+    use_starttls: bool,
+) -> None:
+    if port == 465 or not use_starttls:
+        with smtplib.SMTP_SSL(host, port, timeout=15) as server:
             server.login(username, password)
             server.send_message(message)
         return
 
-    with smtplib.SMTP(host, port, timeout=20) as server:
+    with smtplib.SMTP(host, port, timeout=15) as server:
         server.ehlo()
         server.starttls()
         server.ehlo()
@@ -127,22 +130,54 @@ def _deliver(message: EmailMessage, cfg: dict[str, str | int | bool]) -> None:
         server.send_message(message)
 
 
+def _attempt_ports(
+    host: str,
+    configured_port: int,
+    use_tls: bool,
+) -> list[tuple[int, bool]]:
+    """
+    Build SMTP attempt order.
+
+    Gmail / many cloud hosts work more reliably on 465 (SSL) from Render.
+    """
+
+    attempts: list[tuple[int, bool]] = []
+    host_l = host.lower()
+
+    if "gmail.com" in host_l or "google.com" in host_l:
+        attempts.extend([(465, False), (587, True)])
+    else:
+        attempts.append((configured_port, use_tls))
+        if configured_port != 465:
+            attempts.append((465, False))
+        if configured_port != 587:
+            attempts.append((587, True))
+
+    # Deduplicate while preserving order
+    seen: set[tuple[int, bool]] = set()
+    ordered: list[tuple[int, bool]] = []
+    for item in attempts:
+        if item not in seen:
+            seen.add(item)
+            ordered.append(item)
+    return ordered
+
+
 def send_email(
     *,
     to_email: str,
     subject: str,
     body: str,
-) -> bool:
+) -> Tuple[bool, str]:
     """
     Send a plain-text email.
 
-    Returns True on success, False on soft failure.
-    Never raises to callers for delivery failures.
+    Returns (success, reason_code). Never raises to callers.
     """
 
     if not to_email:
         logger.warning("email_skipped_missing_recipient")
-        return False
+        return False, "missing_recipient"
 
     cfg = _smtp_settings()
     if not (
@@ -152,10 +187,10 @@ def send_email(
         and cfg["password"]
     ):
         logger.warning(
-            "email_skipped_smtp_not_configured recipient_domain=%s",
-            to_email.split("@")[-1] if "@" in to_email else "unknown",
+            "email_skipped_smtp_not_configured recipient=%s",
+            mask_email(to_email),
         )
-        return False
+        return False, "smtp_not_configured"
 
     message = EmailMessage()
     message["Subject"] = subject
@@ -163,62 +198,55 @@ def send_email(
     message["To"] = to_email
     message.set_content(body)
 
-    try:
-        _deliver(message, cfg)
-        logger.info(
-            "email_sent subject=%s recipient=%s",
-            subject,
-            mask_email(to_email),
-        )
-        return True
+    host = str(cfg["host"])
+    username = str(cfg["username"])
+    password = str(cfg["password"])
+    errors: list[str] = []
 
-    except smtplib.SMTPAuthenticationError as exc:
-        logger.error(
-            "email_delivery_failed subject=%s error_type=SMTPAuthenticationError "
-            "smtp_code=%s smtp_error=%s hint=check_app_password_on_render_env",
-            subject,
-            getattr(exc, "smtp_code", None),
-            (
+    for port, use_starttls in _attempt_ports(
+        host,
+        int(cfg["port"]),
+        bool(cfg["use_tls"]),
+    ):
+        try:
+            _deliver_on_port(
+                message,
+                host=host,
+                port=port,
+                username=username,
+                password=password,
+                use_starttls=use_starttls,
+            )
+            logger.info(
+                "email_sent subject=%s recipient=%s port=%s",
+                subject,
+                mask_email(to_email),
+                port,
+            )
+            return True, f"sent_via_{port}"
+        except smtplib.SMTPAuthenticationError as exc:
+            detail = (
                 exc.smtp_error.decode()
                 if isinstance(exc.smtp_error, bytes)
-                else exc.smtp_error
-            ),
-        )
-        return False
+                else str(exc.smtp_error)
+            )
+            errors.append(f"auth_{port}:{detail[:80]}")
+            logger.error(
+                "email_auth_failed port=%s recipient=%s",
+                port,
+                mask_email(to_email),
+            )
+        except Exception as exc:
+            errors.append(f"{type(exc).__name__}_{port}")
+            logger.error(
+                "email_delivery_failed port=%s error_type=%s detail=%s",
+                port,
+                type(exc).__name__,
+                str(exc)[:160],
+            )
 
-    except Exception as exc:
-        # Fallback: some hosts prefer implicit SSL on 465.
-        if int(cfg["port"]) == 587:
-            try:
-                cfg_ssl = dict(cfg)
-                cfg_ssl["port"] = 465
-                cfg_ssl["use_tls"] = False
-                _deliver(message, cfg_ssl)
-                logger.info(
-                    "email_sent_via_ssl_fallback subject=%s recipient=%s",
-                    subject,
-                    mask_email(to_email),
-                )
-                return True
-            except Exception as ssl_exc:
-                logger.error(
-                    "email_delivery_failed subject=%s error_type=%s detail=%s "
-                    "ssl_fallback_type=%s ssl_fallback_detail=%s",
-                    subject,
-                    type(exc).__name__,
-                    str(exc)[:160],
-                    type(ssl_exc).__name__,
-                    str(ssl_exc)[:160],
-                )
-                return False
-
-        logger.error(
-            "email_delivery_failed subject=%s error_type=%s detail=%s",
-            subject,
-            type(exc).__name__,
-            str(exc)[:200],
-        )
-        return False
+    reason = errors[0] if errors else "delivery_failed"
+    return False, reason
 
 
 def send_email_with_timeout(
@@ -226,9 +254,9 @@ def send_email_with_timeout(
     to_email: str,
     subject: str,
     body: str,
-    timeout_seconds: float = 25,
-) -> bool:
-    """Send email in a worker thread so the API request cannot hang forever."""
+    timeout_seconds: float = 35,
+) -> Tuple[bool, str]:
+    """Send email in a worker thread so the API cannot hang forever."""
 
     with ThreadPoolExecutor(max_workers=1) as pool:
         future = pool.submit(
@@ -238,14 +266,14 @@ def send_email_with_timeout(
             body=body,
         )
         try:
-            return bool(future.result(timeout=timeout_seconds))
+            return future.result(timeout=timeout_seconds)
         except FuturesTimeout:
             logger.error(
                 "email_delivery_timed_out subject=%s recipient=%s",
                 subject,
                 mask_email(to_email),
             )
-            return False
+            return False, "timeout"
 
 
 def notify_admin_signup_request(
@@ -267,11 +295,13 @@ def notify_admin_signup_request(
         f"Username:\n{username}\n\n"
         "Please review the pending registration in Agent 66.\n"
     )
-    return send_email_with_timeout(
+    ok, _reason = send_email_with_timeout(
         to_email=admin_email,
         subject="Agent 66 — New Student Registration Request",
         body=body,
+        timeout_seconds=20,
     )
+    return ok
 
 
 def notify_student_registration_approved(
@@ -279,7 +309,7 @@ def notify_student_registration_approved(
     to_email: str,
     username: str,
     temporary_password: str,
-) -> bool:
+) -> Tuple[bool, str]:
     login_url = (
         os.environ.get("APP_LOGIN_URL", "").strip()
         or settings.app_login_url
@@ -301,5 +331,5 @@ def notify_student_registration_approved(
         to_email=to_email,
         subject="Agent 66 — Registration Accepted",
         body=body,
-        timeout_seconds=25,
+        timeout_seconds=35,
     )

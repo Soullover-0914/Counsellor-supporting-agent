@@ -204,12 +204,19 @@ def create_registration_request(
         connection.close()
 
     # Soft-fail email: registration remains pending regardless.
-    notify_admin_signup_request(
-        student_name=registration.student_name,
-        student_id=registration.student_id,
-        email=registration.email,
-        username=registration.username,
-    )
+    # Run in a daemon thread so signup never times out waiting on SMTP.
+    import threading
+
+    threading.Thread(
+        target=notify_admin_signup_request,
+        kwargs={
+            "student_name": registration.student_name,
+            "student_id": registration.student_id,
+            "email": registration.email,
+            "username": registration.username,
+        },
+        daemon=True,
+    ).start()
 
     return registration
 
@@ -450,10 +457,13 @@ def reject_registration(
 
 def resend_temporary_credentials(
     registration_id: str,
-) -> bool:
+) -> tuple[bool, str]:
     """
     Re-issue a new temporary password for an approved registration
     that has not completed the one-time password change.
+
+    Password is updated only after the email is accepted by SMTP.
+    Returns (email_sent, detail_message).
     """
 
     registration = get_registration_request(registration_id)
@@ -485,7 +495,10 @@ def resend_temporary_credentials(
         user = cursor.fetchone()
 
         if user is None:
-            raise ValueError("Approved student account was not found.")
+            raise ValueError(
+                "Approved student account was not found. "
+                "Re-approve is not possible; contact support to recreate the account."
+            )
 
         if not bool(user["active"]):
             raise ValueError("Student account is inactive.")
@@ -496,8 +509,27 @@ def resend_temporary_credentials(
                 "credentials cannot be reissued."
             )
 
+        recipient = user["email"] or registration.email
         temporary_password = generate_temporary_password()
+
+        email_sent, reason = notify_student_registration_approved(
+            to_email=recipient,
+            username=registration.username,
+            temporary_password=temporary_password,
+        )
+
+        if not email_sent:
+            temporary_password = ""
+            raise ValueError(
+                "Email delivery failed "
+                f"({reason}). The temporary password was NOT changed. "
+                "On Render set SMTP_HOST=smtp.gmail.com, SMTP_PORT=465, "
+                "SMTP_USERNAME, SMTP_PASSWORD (Gmail App Password), "
+                "SMTP_FROM_EMAIL, then try Resend again."
+            )
+
         password_hash = hash_password(temporary_password)
+        temporary_password = ""
 
         cursor.execute(
             """
@@ -514,10 +546,4 @@ def resend_temporary_credentials(
     finally:
         connection.close()
 
-    email_sent = notify_student_registration_approved(
-        to_email=user["email"] or registration.email,
-        username=registration.username,
-        temporary_password=temporary_password,
-    )
-    temporary_password = ""
-    return email_sent
+    return True, f"Credentials emailed to {recipient}."
