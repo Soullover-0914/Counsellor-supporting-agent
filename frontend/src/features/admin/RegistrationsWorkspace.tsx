@@ -56,7 +56,7 @@ export function RegistrationsWorkspace() {
         setSelected(result.registration)
         pushToast({
           tone: result.email_sent ? 'success' : 'info',
-          title: 'Registration accepted',
+          title: result.email_sent ? 'Registration accepted' : 'Approved — email issue',
           message: result.message,
         })
       } else if (confirm === 'reject') {
@@ -66,8 +66,8 @@ export function RegistrationsWorkspace() {
       } else {
         const result = await resendRegistrationCredentials(selected.registration_id)
         pushToast({
-          tone: result.email_sent ? 'success' : 'info',
-          title: 'Credential reissue',
+          tone: result.email_sent ? 'success' : 'error',
+          title: result.email_sent ? 'Credentials emailed' : 'Email not delivered',
           message: result.message,
         })
       }

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 
 # ============================================================
@@ -139,6 +139,8 @@ from app.services.registration import (
 )
 from app.services.email import (
     email_configured,
+    email_status,
+    mask_email,
     notify_student_registration_approved,
 )
 
@@ -475,7 +477,6 @@ async def retrieve_registration(
 )
 async def approve_registration_request(
     registration_id: str,
-    background_tasks: BackgroundTasks,
     current_user=Depends(require_roles("admin")),
 ):
     try:
@@ -497,21 +498,13 @@ async def approve_registration_request(
             detail=str(exc),
         )
 
-    email_will_send = False
+    email_sent = False
     if temporary_password:
-        to_email = registration.email
-        username = registration.username
-        password_for_mail = temporary_password
-
-        def _deliver_credentials() -> None:
-            notify_student_registration_approved(
-                to_email=to_email,
-                username=username,
-                temporary_password=password_for_mail,
-            )
-
-        background_tasks.add_task(_deliver_credentials)
-        email_will_send = email_configured()
+        email_sent = notify_student_registration_approved(
+            to_email=registration.email,
+            username=registration.username,
+            temporary_password=temporary_password,
+        )
 
     _audit(
         current_user,
@@ -527,7 +520,7 @@ async def approve_registration_request(
         action="temporary_credential_issued",
         resource_type="authentication",
         resource_id=registration.username,
-        outcome="success" if (email_will_send or temporary_password is None) else "failure",
+        outcome="success" if (email_sent or temporary_password is None) else "failure",
         human_approved=True,
     )
 
@@ -536,20 +529,25 @@ async def approve_registration_request(
             "Registration was already approved. "
             "If the student did not receive mail, use Resend temporary credentials."
         )
-    elif email_will_send:
+    elif email_sent:
         message = (
-            "Registration accepted. Temporary credentials are being emailed "
-            "to the student."
+            "Registration accepted. Temporary credentials were emailed to "
+            f"{mask_email(registration.email)}."
+        )
+    elif not email_configured():
+        message = (
+            "Registration accepted, but SMTP is not configured on the server. "
+            "Set SMTP_* env vars on Render, redeploy, then use Resend."
         )
     else:
         message = (
-            "Registration accepted, but email is not configured. "
-            "Use Resend temporary credentials after SMTP is set."
+            "Registration accepted, but the student email could not be delivered. "
+            "Check Render logs / Gmail app password, then use Resend temporary credentials."
         )
 
     return ApproveRegistrationResponse(
         registration=registration,
-        email_sent=email_will_send,
+        email_sent=email_sent,
         message=message,
     )
 
@@ -628,14 +626,46 @@ async def resend_registration_credentials(
         human_approved=True,
     )
 
+    registration = get_registration_request(registration_id)
+    recipient = registration.email if registration else ""
+
+    if email_sent:
+        message = (
+            "Temporary credentials were emailed to "
+            f"{mask_email(recipient)}."
+        )
+    elif not email_configured():
+        message = (
+            "Password was regenerated, but SMTP is not configured on Render. "
+            "Set SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_EMAIL, then redeploy."
+        )
+    else:
+        message = (
+            "Password was regenerated, but delivery to "
+            f"{mask_email(recipient)} failed. Check Render logs and Gmail app password."
+        )
+
     return {
         "registration_id": registration_id,
         "email_sent": email_sent,
-        "message": (
-            "Temporary credentials were regenerated. "
-            "Delivery depends on email configuration."
-        ),
+        "recipient_masked": mask_email(recipient) if recipient else None,
+        "message": message,
     }
+
+
+@router.get("/system/email-status")
+async def get_email_status(
+    current_user=Depends(require_roles("admin")),
+):
+    """Admin-only SMTP configuration check (no secrets returned)."""
+
+    _audit(
+        current_user,
+        action="email_status_checked",
+        resource_type="system",
+        outcome="success",
+    )
+    return email_status()
 
 
 # ============================================================
