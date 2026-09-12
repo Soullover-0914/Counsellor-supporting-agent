@@ -36,6 +36,8 @@ services:
         sync: false
       - key: PUBLIC_BASE_URL
         sync: false
+      - key: CORS_ORIGINS
+        value: "http://127.0.0.1:5173,http://localhost:5173"
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
