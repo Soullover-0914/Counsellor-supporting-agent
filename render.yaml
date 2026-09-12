@@ -50,6 +50,10 @@ services:
         value: Agent 66
       - key: SMTP_USE_TLS
         value: "false"
+      - key: BREVO_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
       - key: EMAIL_ADMIN
         sync: false
       - key: GEMINI_API_KEY

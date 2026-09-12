@@ -28,27 +28,32 @@ Free / ephemeral container disks reset on every redeploy. The encrypted SQLite f
 
 First boot on an empty disk seeds demo users + sample referrals/resources/records once. Later redeploys preserve `/var/data`.
 
-## Required environment variables
+## Email on Render (important)
 
-| Key | Notes |
-|-----|--------|
-| `ENVIRONMENT` | `production` |
-| `AUTH_SECRET_KEY` | Generate once; keep forever |
-| `DATABASE_ENCRYPTION_KEY` | Generate once; keep forever |
-| `DATABASE_PATH` | `/var/data/counselling_agent_encrypted.db` |
-| `FRONTEND_DIST` | `/app/frontend/dist` |
-| `SEED_DEMO_USERS` | `true` (first boot only; skips when users exist) |
-| `APP_LOGIN_URL` | `https://YOUR-SERVICE.onrender.com/login` |
-| `PUBLIC_BASE_URL` | `https://YOUR-SERVICE.onrender.com` |
-| `SMTP_HOST` | e.g. `smtp.gmail.com` |
-| `SMTP_PORT` | `587` |
-| `SMTP_USERNAME` | sender account |
-| `SMTP_PASSWORD` | app password |
-| `SMTP_FROM_EMAIL` | from address |
-| `SMTP_FROM_NAME` | `Agent 66` |
-| `SMTP_USE_TLS` | `true` |
-| `EMAIL_ADMIN` | admin notification inbox |
-| `GEMINI_API_KEY` | optional |
+Render **free** instances block outbound SMTP ports `25`, `465`, and `587`.
+Gmail SMTP that works on your laptop will time out on free Render and cause **502**.
+
+### Recommended (HTTPS — works on free and paid)
+
+1. Create a free [Brevo](https://www.brevo.com/) account
+2. Verify your sender email (your Gmail is fine after verification)
+3. Copy the **API key**
+4. In Render → Environment set:
+   - `BREVO_API_KEY=...`
+   - `SMTP_FROM_EMAIL=your-verified-sender@gmail.com`
+   - `SMTP_FROM_NAME=Agent 66`
+   - `EMAIL_ADMIN=...`
+   - `APP_LOGIN_URL=https://YOUR-SERVICE.onrender.com/login`
+5. Manual Deploy
+6. Approve / Resend credentials again
+
+Optional alternative: `RESEND_API_KEY` (Resend.com).
+
+### SMTP only (paid Render instance)
+
+Keep `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, Gmail App Password.
+SMTP is a fallback when no Brevo/Resend key is set.
+
 
 ## Redeploy safety
 

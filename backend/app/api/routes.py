@@ -644,7 +644,7 @@ async def resend_registration_credentials(
 async def get_email_status(
     current_user=Depends(require_roles("admin")),
 ):
-    """Admin-only SMTP configuration check (no secrets returned)."""
+    """Admin-only SMTP/API configuration check (no secrets returned)."""
 
     _audit(
         current_user,
@@ -653,6 +653,52 @@ async def get_email_status(
         outcome="success",
     )
     return email_status()
+
+
+@router.post("/system/email-test")
+async def send_test_email(
+    current_user=Depends(require_roles("admin")),
+):
+    """Send a test message to EMAIL_ADMIN to verify production mail."""
+
+    from app.services.email import (
+        ROLE_EMAIL_RECIPIENTS,
+        _env,
+        send_email_with_timeout,
+    )
+
+    target = _env("EMAIL_ADMIN", ROLE_EMAIL_RECIPIENTS["admin"])
+    ok, reason = send_email_with_timeout(
+        to_email=target,
+        subject="Agent 66 — Email test",
+        body=(
+            "This is a production email connectivity test from Agent 66.\n"
+            "If you received this, outbound email is working.\n"
+        ),
+        timeout_seconds=25,
+    )
+
+    _audit(
+        current_user,
+        action="email_test_sent",
+        resource_type="system",
+        outcome="success" if ok else "failure",
+    )
+
+    return {
+        "email_sent": ok,
+        "provider": email_status().get("provider"),
+        "recipient_masked": mask_email(target),
+        "reason": reason,
+        "message": (
+            f"Test email sent to {mask_email(target)}."
+            if ok
+            else (
+                f"Test email failed ({reason}). "
+                "Set BREVO_API_KEY on Render for reliable delivery."
+            )
+        ),
+    }
 
 
 @router.post("/system/reset-default-users")

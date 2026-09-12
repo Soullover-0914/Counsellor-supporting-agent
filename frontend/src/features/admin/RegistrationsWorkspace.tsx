@@ -28,7 +28,12 @@ export function RegistrationsWorkspace() {
     setLoading(true)
     setError(null)
     try {
-      setItems(await listRegistrations())
+      const next = await listRegistrations()
+      setItems(next)
+      setSelected((current) => {
+        if (!current) return null
+        return next.find((item) => item.registration_id === current.registration_id) ?? null
+      })
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : 'Unable to load registration requests.',

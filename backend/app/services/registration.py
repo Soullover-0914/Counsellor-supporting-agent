@@ -462,14 +462,17 @@ def resend_temporary_credentials(
     Re-issue a new temporary password for an approved registration
     that has not completed the one-time password change.
 
-    Password is updated only after the email is accepted by SMTP.
-    Returns (email_sent, detail_message).
+    Password is updated only after the email is accepted by the provider.
+    If the user row is missing but the registration is approved, recreate it.
     """
 
     registration = get_registration_request(registration_id)
 
     if registration is None:
-        raise ValueError("Registration request not found.")
+        raise ValueError(
+            "Registration request not found. Refresh the page — "
+            "this request may have been cleared or belongs to an old database."
+        )
 
     if registration.status != RegistrationStatus.APPROVED:
         raise ValueError(
@@ -495,10 +498,55 @@ def resend_temporary_credentials(
         user = cursor.fetchone()
 
         if user is None:
-            raise ValueError(
-                "Approved student account was not found. "
-                "Re-approve is not possible; contact support to recreate the account."
+            # Approved registration without user row (DB cleanup / partial failure).
+            temporary_password = generate_temporary_password()
+            password_hash = hash_password(temporary_password)
+            now = _now().isoformat()
+            cursor.execute(
+                """
+                INSERT INTO users (
+                    username,
+                    password_hash,
+                    role,
+                    student_id,
+                    email,
+                    active,
+                    temporary_password,
+                    password_changed_once,
+                    full_name,
+                    branch,
+                    year,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, ?, 1, 1, 0, ?, ?, ?, ?)
+                """,
+                (
+                    registration.username,
+                    password_hash,
+                    "student",
+                    registration.student_id,
+                    registration.email,
+                    registration.student_name,
+                    registration.branch,
+                    registration.year,
+                    now,
+                ),
             )
+            connection.commit()
+
+            email_sent, reason = notify_student_registration_approved(
+                to_email=registration.email,
+                username=registration.username,
+                temporary_password=temporary_password,
+            )
+            temporary_password = ""
+            if not email_sent:
+                raise ValueError(
+                    "Account was recreated but email delivery failed "
+                    f"({reason}). Set BREVO_API_KEY (recommended on Render) "
+                    "or fix SMTP, then try Resend again."
+                )
+            return True, f"Credentials emailed to {registration.email}."
 
         if not bool(user["active"]):
             raise ValueError("Student account is inactive.")
@@ -523,9 +571,8 @@ def resend_temporary_credentials(
             raise ValueError(
                 "Email delivery failed "
                 f"({reason}). The temporary password was NOT changed. "
-                "On Render set SMTP_HOST=smtp.gmail.com, SMTP_PORT=465, "
-                "SMTP_USERNAME, SMTP_PASSWORD (Gmail App Password), "
-                "SMTP_FROM_EMAIL, then try Resend again."
+                "On Render use BREVO_API_KEY (HTTPS email) because free "
+                "instances block Gmail SMTP ports. Then try Resend again."
             )
 
         password_hash = hash_password(temporary_password)
