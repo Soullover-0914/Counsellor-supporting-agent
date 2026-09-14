@@ -2,6 +2,7 @@ aiosqlite==0.22.1
 annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.15.1
+brevo-python==5.0.2
 certifi==2026.7.22
 cffi==2.1.1
 charset-normalizer==3.5.1
@@ -20,8 +21,10 @@ greenlet==3.5.5
 grpcio==1.83.1
 grpcio-status==1.71.2
 h11==0.16.0
+httpcore==1.0.9
 httplib2==0.32.0
 httptools==0.8.0
+httpx==0.28.1
 idna==3.19
 proto-plus==1.28.2
 protobuf==5.29.6

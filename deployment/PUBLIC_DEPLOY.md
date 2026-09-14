@@ -40,6 +40,7 @@ Agent 66 sends mail through **Brevo Transactional Email API** only. SMTP is not 
    - `BREVO_FROM_NAME=Agent 66`
    - `EMAIL_ADMIN=...`
    - `APP_LOGIN_URL=https://YOUR-SERVICE.onrender.com/login`
+   - `CORS_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173,https://frontend-pi-fawn-59ukp6dnl5.vercel.app,https://agent66-counselling.onrender.com`
 4. Manual Deploy
 5. Approve / Resend credentials
 

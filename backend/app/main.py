@@ -8,6 +8,11 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
 from app.core.config import settings
+from app.core.cors import (
+    CORS_ALLOW_HEADERS,
+    CORS_ALLOW_METHODS,
+    configured_cors_origins,
+)
 from app.database.db import DATABASE_PATH
 from app.services.startup import initialize_application
 
@@ -29,22 +34,13 @@ app = FastAPI(
     description="Agent 66 - Counselling Support Agent",
 )
 
-_cors_origins = [
-    origin.strip()
-    for origin in os.environ.get(
-        "CORS_ORIGINS",
-        "http://127.0.0.1:5173,http://localhost:5173",
-    ).split(",")
-    if origin.strip()
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_origin_regex=r"https://([a-z0-9-]+\.)*vercel\.app",
+    allow_origins=configured_cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=list(CORS_ALLOW_METHODS),
+    allow_headers=list(CORS_ALLOW_HEADERS),
+    expose_headers=[],
 )
 
 app.include_router(router)

@@ -44,6 +44,13 @@ class Settings(BaseSettings):
     # When true, create demo role accounts if the database is empty
     seed_demo_users: bool = False
 
+    # Comma-separated browser origins allowed to call the API with credentials.
+    # Production frontend origins are supplied through CORS_ALLOWED_ORIGINS.
+    cors_allowed_origins: str = (
+        "http://127.0.0.1:5173,"
+        "http://localhost:5173"
+    )
+
     model_config = SettingsConfigDict(
         env_file=_ENV_FILE,
         env_file_encoding="utf-8-sig",

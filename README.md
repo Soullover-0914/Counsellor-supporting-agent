@@ -22,11 +22,14 @@ npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
 - Frontend API base (dev): `http://127.0.0.1:8000`
-- Production API base: same origin (`/api`)
+- Separate Vercel production frontend uses `VITE_API_BASE_URL=https://agent66-counselling.onrender.com`
+- Production API base on Render (same-origin SPA): `/api`
 
 Copy `deployment/.env.example` patterns into `backend/.env`. Never commit secrets.
 
 Email is sent by the backend through **Brevo** (`BREVO_API_KEY` and `BREVO_FROM_EMAIL` in server environment only). The frontend never talks to Brevo.
+
+When the Vercel frontend calls the Render API, set `CORS_ALLOWED_ORIGINS` on the backend to the exact frontend origins (comma-separated, no trailing slash). Example: `http://127.0.0.1:5173,http://localhost:5173,https://frontend-pi-fawn-59ukp6dnl5.vercel.app`.
 
 ## Public deployment (Render)
 

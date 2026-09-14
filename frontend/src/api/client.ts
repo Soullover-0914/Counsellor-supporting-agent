@@ -137,7 +137,7 @@ export async function apiRequest<T>(
     })
   } catch {
     throw new ApiError(
-      'Unable to reach the counselling support service. Confirm the backend is running.',
+      'Unable to reach the Agent 66 server. Please check the connection and try again.',
       0,
       'network',
     )

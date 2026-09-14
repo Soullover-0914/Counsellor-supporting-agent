@@ -100,10 +100,16 @@ export function RegistrationsWorkspace() {
         setConfirm(null)
         await load()
       }
+      const networkFailure =
+        err instanceof ApiError && (err.code === 'network' || err.status === 0)
       pushToast({
         tone: 'error',
         title: 'Action failed',
-        message: err instanceof ApiError ? err.message : undefined,
+        message: networkFailure
+          ? 'Unable to reach the Agent 66 server. Please check the connection and try again.'
+          : err instanceof ApiError
+            ? err.message
+            : 'Unable to reach the Agent 66 server. Please check the connection and try again.',
       })
     } finally {
       setBusy(false)

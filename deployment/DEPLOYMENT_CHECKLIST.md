@@ -15,6 +15,7 @@
 - [ ] `BREVO_FROM_EMAIL` verified sender in Brevo
 - [ ] `BREVO_FROM_NAME=Agent 66`
 - [ ] `EMAIL_ADMIN` configured
+- [ ] `CORS_ALLOWED_ORIGINS` includes the Vercel frontend origin and local Vite origins
 - [ ] `SEED_DEMO_USERS=true` for first boot only (safe: skips when users already exist)
 
 ## Persistent storage (Render)
