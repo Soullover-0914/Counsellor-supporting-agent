@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Activity,
@@ -7,6 +8,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardList,
+  Download,
   FileLock2,
   GraduationCap,
   HeartHandshake,
@@ -75,37 +77,43 @@ const workflow: DemoWorkflow[] = [
 
 const routingCases: DemoRoutingCase[] = [
   {
-    request: 'I am struggling with one of my subjects and need academic guidance.',
+    request:
+      'I am struggling with one of my subjects and need academic guidance.',
     category: 'Academic / Learning Support',
     urgency: 'Routine',
     authority: 'Faculty / Mentor',
   },
   {
-    request: 'My attendance record appears incorrect and I need help resolving it.',
+    request:
+      'My attendance record appears incorrect and I need help resolving it.',
     category: 'Attendance',
     urgency: 'Routine',
     authority: 'Faculty / Mentor',
   },
   {
-    request: 'I need help understanding an issue related to my examination.',
+    request:
+      'I need help understanding an issue related to my examination.',
     category: 'Examination Support',
     urgency: 'Moderate',
     authority: 'Faculty / HOD',
   },
   {
-    request: 'I would like to speak privately with someone about my wellbeing.',
+    request:
+      'I would like to speak privately with someone about my wellbeing.',
     category: 'Wellbeing / Counselling Request',
     urgency: 'Moderate',
     authority: 'Counsellor',
   },
   {
-    request: 'I need an academic accommodation because of a private support matter.',
+    request:
+      'I need an academic accommodation because of a private support matter.',
     category: 'Academic Accommodation',
     urgency: 'Moderate',
     authority: 'Authorised Academic Authority',
   },
   {
-    request: 'I am being bullied and I do not feel safe dealing with this alone.',
+    request:
+      'I am being bullied and I do not feel safe dealing with this alone.',
     category: 'Safety / Harassment Concern',
     urgency: 'High',
     authority: 'Designated Authority / HOD',
@@ -175,12 +183,105 @@ const capabilities = [
   },
 ]
 
+const demoCredentials = [
+  {
+    role: 'Student',
+    username: 'student001',
+    password: 'student123',
+  },
+  {
+    role: 'Student',
+    username: 'student002',
+    password: 'student123',
+  },
+  {
+    role: 'Counsellor',
+    username: 'counsellor001',
+    password: 'counsellor123',
+  },
+  {
+    role: 'Mentor',
+    username: 'mentor001',
+    password: 'mentor123',
+  },
+  {
+    role: 'Faculty',
+    username: 'faculty001',
+    password: 'faculty123',
+  },
+  {
+    role: 'HOD',
+    username: 'hod001',
+    password: 'hod123',
+  },
+  {
+    role: 'Dean',
+    username: 'dean001',
+    password: 'dean123',
+  },
+  {
+    role: 'Admin',
+    username: 'admin001',
+    password: 'admin123',
+  },
+]
+
 function urgencyClass(urgency: DemoRoutingCase['urgency']) {
   return `faculty-demo-urgency faculty-demo-urgency-${urgency.toLowerCase()}`
 }
 
 export function FacultyDemoPage() {
   const reduceMotion = useReducedMotion()
+  const [downloaded, setDownloaded] = useState(false)
+
+  const downloadDemoCredentials = () => {
+    const content = [
+      'AGENT 66 — FACULTY EVALUATION DEMO',
+      '===================================',
+      '',
+      'DEMO ONLY — NOT FOR PRODUCTION USE',
+      'These credentials are provided only for faculty evaluation of the local/demo environment.',
+      'Do not use them for production access.',
+      '',
+      'DEMO USER ACCOUNTS',
+      '------------------',
+      '',
+      ...demoCredentials.map(
+        (account) =>
+          `Role: ${account.role}\nUsername: ${account.username}\nPassword: ${account.password}\n`,
+      ),
+      'IMPORTANT',
+      '---------',
+      '1. These are demonstration/test credentials only.',
+      '2. They must not be used as production credentials.',
+      '3. Production credentials must be managed privately and rotated appropriately.',
+      '4. Never share real student, counsellor, faculty, HOD, dean, or administrator credentials publicly.',
+      '',
+      'Agent 66 — Counselling Support System',
+    ].join('\n')
+
+    const blob = new Blob([content], {
+      type: 'text/plain;charset=utf-8',
+    })
+
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+
+    anchor.href = url
+    anchor.download = 'Agent66-Faculty-Demo-Credentials.txt'
+
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+
+    URL.revokeObjectURL(url)
+
+    setDownloaded(true)
+
+    window.setTimeout(() => {
+      setDownloaded(false)
+    }, 2500)
+  }
 
   return (
     <main className="faculty-demo-page">
@@ -229,6 +330,7 @@ export function FacultyDemoPage() {
 
           <div className="faculty-demo-privacy-banner">
             <LockKeyhole size={21} aria-hidden />
+
             <div>
               <strong>Simulated data only</strong>
               <span>
@@ -255,12 +357,44 @@ export function FacultyDemoPage() {
               <span>Emergency concerns bypass ordinary queues.</span>
             </div>
           </div>
+
+          <div className="faculty-demo-credentials-panel">
+            <div className="faculty-demo-credentials-copy">
+              <div className="faculty-demo-credentials-icon">
+                <Download size={21} aria-hidden />
+              </div>
+
+              <div>
+                <h2>Faculty Demo Access</h2>
+                <p>
+                  Download the test account list for evaluating the different
+                  Agent 66 role-based workspaces.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="faculty-demo-download-button"
+              onClick={downloadDemoCredentials}
+            >
+              <Download size={18} aria-hidden />
+              {downloaded
+                ? 'Credentials Downloaded'
+                : 'Download Demo Credentials'}
+            </button>
+          </div>
+
+          <p className="faculty-demo-credentials-warning">
+            Demo accounts only. Do not use or publish production credentials.
+          </p>
         </motion.div>
       </section>
 
       <section className="faculty-demo-section">
         <div className="faculty-demo-section-heading">
           <span>01</span>
+
           <div>
             <p>System Workflow</p>
             <h2>From student request to authorised human support</h2>
@@ -269,7 +403,10 @@ export function FacultyDemoPage() {
 
         <div className="faculty-demo-workflow">
           {workflow.map((item, index) => (
-            <div className="faculty-demo-workflow-item" key={item.step}>
+            <div
+              className="faculty-demo-workflow-item"
+              key={item.step}
+            >
               <div className="faculty-demo-workflow-number">
                 {item.step}
               </div>
@@ -300,6 +437,7 @@ export function FacultyDemoPage() {
       <section className="faculty-demo-section faculty-demo-section-soft">
         <div className="faculty-demo-section-heading">
           <span>02</span>
+
           <div>
             <p>Routing Demonstration</p>
             <h2>Example student issues and authority routing</h2>
@@ -357,6 +495,7 @@ export function FacultyDemoPage() {
       <section className="faculty-demo-section">
         <div className="faculty-demo-section-heading">
           <span>03</span>
+
           <div>
             <p>Implemented Support Areas</p>
             <h2>Core Agent 66 capabilities</h2>
@@ -364,16 +503,21 @@ export function FacultyDemoPage() {
         </div>
 
         <div className="faculty-demo-capability-grid">
-          {capabilities.map(({ icon: Icon, title, description }) => (
-            <article className="faculty-demo-capability-card" key={title}>
-              <div className="faculty-demo-capability-icon">
-                <Icon size={22} aria-hidden />
-              </div>
+          {capabilities.map(
+            ({ icon: Icon, title, description }) => (
+              <article
+                className="faculty-demo-capability-card"
+                key={title}
+              >
+                <div className="faculty-demo-capability-icon">
+                  <Icon size={22} aria-hidden />
+                </div>
 
-              <h3>{title}</h3>
-              <p>{description}</p>
-            </article>
-          ))}
+                <h3>{title}</h3>
+                <p>{description}</p>
+              </article>
+            ),
+          )}
         </div>
       </section>
 
@@ -384,7 +528,10 @@ export function FacultyDemoPage() {
 
         <div>
           <p className="faculty-demo-eyebrow">Safety Boundary</p>
-          <h2>Agent 66 supports routing — not counselling or diagnosis</h2>
+
+          <h2>
+            Agent 66 supports routing — not counselling or diagnosis
+          </h2>
 
           <p>
             The system is designed to recognise support indicators and route
@@ -426,6 +573,7 @@ export function FacultyDemoPage() {
       <section className="faculty-demo-section faculty-demo-architecture">
         <div className="faculty-demo-section-heading">
           <span>04</span>
+
           <div>
             <p>Privacy Architecture</p>
             <h2>Role-based and restricted information access</h2>
